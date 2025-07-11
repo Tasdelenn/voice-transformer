@@ -15,7 +15,7 @@ Real-time voice processing tool with minimal latency. Features include:
 
 1. Clone the repository
 ```bash
-git clone https://github.com/YourUsername/voice-transformer.git
+git clone https://github.com/Tasdelenn/voice-transformer.git
 cd voice-transformer
 ```
 
