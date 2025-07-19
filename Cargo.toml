@@ -13,3 +13,5 @@ anyhow = "1.0.75"  # Error handling
 rustfft = "6.1.0"  # FFT for audio processing
 realfft = "3.3.0"  # Optimized FFT for real numbers
 hound = "3.5.1"  # WAV file handling
+crossterm = "0.27.0"  # Terminal control for visualization
+num-complex = "0.4.4"  # Complex number support for FFT

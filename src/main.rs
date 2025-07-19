@@ -6,7 +6,13 @@ use std::sync::{Arc, Mutex};
 use std::f32::consts::PI;
 use std::io::{self, Write};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
+use rustfft::{FftPlanner, num_complex::Complex};
+use crossterm::{
+    terminal::{self, ClearType},
+    cursor, execute,
+    style::{Color, Print, SetForegroundColor, ResetColor},
+};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -27,6 +33,128 @@ fn cubic_interpolate(p0: f32, p1: f32, p2: f32, p3: f32, t: f32) -> f32 {
     let a2 = p2 - p0;
     let a3 = p1;
     a0 * t * t * t + a1 * t * t + a2 * t + a3
+}
+
+// FFT visualization function
+fn perform_fft_visualization(
+    input_buffer: &[f32], 
+    sample_rate: f32,
+    fft_size: usize
+) -> Vec<f32> {
+    if input_buffer.len() < fft_size {
+        return vec![0.0; fft_size / 2];
+    }
+    
+    let mut planner = FftPlanner::new();
+    let fft = planner.plan_fft_forward(fft_size);
+    
+    // Prepare input data with windowing (Hanning window)
+    let mut buffer: Vec<Complex<f32>> = input_buffer
+        .iter()
+        .take(fft_size)
+        .enumerate()
+        .map(|(i, &sample)| {
+            let window = 0.5 * (1.0 - (2.0 * PI * i as f32 / (fft_size - 1) as f32).cos());
+            Complex::new(sample * window, 0.0)
+        })
+        .collect();
+    
+    // Perform FFT
+    fft.process(&mut buffer);
+    
+    // Calculate magnitude spectrum (only first half due to symmetry)
+    let magnitude_spectrum: Vec<f32> = buffer
+        .iter()
+        .take(fft_size / 2)
+        .map(|c| c.norm())
+        .collect();
+    
+    magnitude_spectrum
+}
+
+// Display frequency spectrum visualization
+fn display_frequency_spectrum(
+    spectrum: &[f32], 
+    sample_rate: f32, 
+    width: usize,
+    height: usize
+) {
+    if spectrum.is_empty() {
+        return;
+    }
+    
+    // Clear screen and move to top
+    print!("\x1B[2J\x1B[H");
+    
+    let max_magnitude = spectrum.iter().fold(0.0f32, |max, &val| max.max(val));
+    if max_magnitude <= 0.0 {
+        println!("No audio signal detected.");
+        return;
+    }
+    
+    let freq_resolution = sample_rate / spectrum.len() as f32 / 2.0;
+    
+    println!("\n🎵 FREQUENCY SPECTRUM ANALYZER 🎵");
+    println!("═══════════════════════════════════════════════════════════════════════════════");
+    println!("Sample Rate: {:.0} Hz | FFT Size: {} | Freq Resolution: {:.1} Hz/bin", 
+             sample_rate, spectrum.len() * 2, freq_resolution);
+    println!("Max Magnitude: {:.4} | Press 'x' to exit visualization", max_magnitude);
+    println!("═══════════════════════════════════════════════════════════════════════════════");
+    
+    // Display frequency bars
+    for row in 0..height {
+        let threshold = (height - row) as f32 / height as f32;
+        print!("|");
+        
+        for bin in 0..width.min(spectrum.len()) {
+            let normalized_magnitude = spectrum[bin] / max_magnitude;
+            let freq = bin as f32 * freq_resolution;
+            
+            if normalized_magnitude >= threshold {
+                // Color coding by frequency range
+                if freq < 250.0 {
+                    print!("\x1B[31m█\x1B[0m"); // Red for bass (0-250Hz)
+                } else if freq < 500.0 {
+                    print!("\x1B[33m█\x1B[0m"); // Yellow for low-mid (250-500Hz)
+                } else if freq < 2000.0 {
+                    print!("\x1B[32m█\x1B[0m"); // Green for mid (500-2000Hz)
+                } else if freq < 6000.0 {
+                    print!("\x1B[36m█\x1B[0m"); // Cyan for high-mid (2-6kHz)
+                } else {
+                    print!("\x1B[35m█\x1B[0m"); // Magenta for high (6kHz+)
+                }
+            } else {
+                print!(" ");
+            }
+        }
+        println!("| {:.1}%", threshold * 100.0);
+    }
+    
+    // Frequency labels
+    print!("└");
+    for _ in 0..width.min(spectrum.len()) {
+        print!("─");
+    }
+    println!("┘");
+    
+    // Display frequency scale
+    print!(" ");
+    for i in (0..width.min(spectrum.len())).step_by(width / 8) {
+        let freq = i as f32 * freq_resolution;
+        if freq < 1000.0 {
+            print!("{:>5.0}Hz ", freq);
+        } else {
+            print!("{:>4.1}kHz", freq / 1000.0);
+        }
+        // Add spaces to align properly
+        for _ in 0..(width / 8).saturating_sub(7) {
+            print!(" ");
+        }
+    }
+    println!();
+    
+    // Legend
+    println!("\nColor Legend: \x1B[31m█\x1B[0m Bass(0-250Hz) \x1B[33m█\x1B[0m Low-Mid(250-500Hz) \x1B[32m█\x1B[0m Mid(500-2kHz) \x1B[36m█\x1B[0m High-Mid(2-6kHz) \x1B[35m█\x1B[0m High(6kHz+)");
 }
 
 fn main() -> Result<()> {
@@ -77,6 +205,13 @@ fn main() -> Result<()> {
     // Create a buffer to store audio samples
     let audio_buffer = Arc::new(Mutex::new(Vec::<f32>::new()));
     
+    // FFT visualization buffers
+    let fft_size = 1024usize;
+    let fft_input_buffer = Arc::new(Mutex::new(Vec::<f32>::new()));
+    let fft_output_buffer = Arc::new(Mutex::new(Vec::<f32>::new()));
+    let visualization_enabled = Arc::new(Mutex::new(false));
+    let last_visualization_time = Arc::new(Mutex::new(Instant::now()));
+    
     // Audio processing parameters (adjustable)
     let sample_rate = 44100.0;
     let volume = Arc::new(Mutex::new(0.9f32));
@@ -113,6 +248,7 @@ fn main() -> Result<()> {
 
     // Build the input stream
     let input_data = audio_buffer.clone();
+    let fft_input_clone = fft_input_buffer.clone();
     let phase_acc = phase_accumulator.clone();
     let vol_clone = volume.clone();
     let noise_clone = noise_threshold.clone();
@@ -188,6 +324,17 @@ fn main() -> Result<()> {
                 let processed_sample = shifted_sample * *volume * gate_multiplier;
                 
                 buffer.push(processed_sample);
+                
+                // Collect data for FFT visualization
+                if let Ok(mut fft_buffer) = fft_input_clone.try_lock() {
+                    fft_buffer.push(processed_sample);
+                    // Keep FFT buffer at fixed size for consistent visualization
+                    if fft_buffer.len() > fft_size {
+                        let excess = fft_buffer.len() - fft_size;
+                        fft_buffer.drain(0..excess);
+                    }
+                }
+                
                 // Enhanced sample interpolation
                 if buffer.len() % 441 == 0 && buffer.len() > 2 {
                     // Cubic interpolation using 4 points
@@ -287,8 +434,13 @@ fn main() -> Result<()> {
     // Display initial settings
     display_settings();
     
+    let vis_enabled = visualization_enabled.clone();
+    let fft_input_vis = fft_input_buffer.clone();
+    let fft_output_vis = fft_output_buffer.clone();
+    let last_vis_time = last_visualization_time.clone();
+    
     loop {
-        print!("\nCommands: (v)olume, (n)oise gate, (a)ttack, (r)elease, (s)moothing, (f)req shift, (b)uffer size, (d)efault, (i)nfo, (q)uit: ");
+        print!("\nCommands: (v)olume, (n)oise, (a)ttack, (r)elease, (s)moothing, (f)req shift, (b)uffer, (w)aveform viz, (d)efault, (i)nfo, (q)uit: ");
         io::stdout().flush()?;
         let mut input = String::new();
         io::stdin().read_line(&mut input)?;
@@ -370,12 +522,51 @@ fn main() -> Result<()> {
                 *smooth.lock().unwrap() = new_smooth;
                 println!("Smoothing factor set to: {}", new_smooth);
             },
+            Some('w') => {
+                // Toggle frequency spectrum visualization
+                println!("\n🎵 Starting Frequency Spectrum Visualization...");
+                println!("Press any key to exit visualization mode.");
+                
+                loop {
+                    // Get current FFT buffer data
+                    let buffer_data = if let Ok(buffer) = fft_input_vis.try_lock() {
+                        if buffer.len() >= fft_size {
+                            buffer.clone()
+                        } else {
+                            vec![0.0; fft_size]
+                        }
+                    } else {
+                        vec![0.0; fft_size]
+                    };
+                    
+                    // Perform FFT and display spectrum
+                    let spectrum = perform_fft_visualization(&buffer_data, sample_rate, fft_size);
+                    display_frequency_spectrum(&spectrum, sample_rate, 80, 20);
+                    
+                    // Check for exit key (non-blocking)
+                    std::thread::sleep(Duration::from_millis(100));
+                    
+                    // Simple exit mechanism - this is a basic implementation
+                    // In a real application, you'd want proper non-blocking input
+                    use std::io::Read;
+                    let mut stdin = io::stdin();
+                    let mut buffer = [0; 1];
+                    if let Ok(_) = stdin.read(&mut buffer) {
+                        break;
+                    }
+                }
+                
+                // Clear screen and return to main menu
+                print!("\x1B[2J\x1B[H");
+                println!("Exited visualization mode.");
+                display_settings();
+            },
             Some('i') => {
                 // Show current status
                 display_settings();
             },
             Some('q') => break,
-            _ => println!("Invalid option. Use v, n, a, r, s, f, b, d, i, or q."),
+            _ => println!("Invalid option. Use v, n, a, r, s, f, b, w, d, i, or q."),
         }
     }
 
