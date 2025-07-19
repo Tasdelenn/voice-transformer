@@ -212,6 +212,7 @@ fn main() -> Result<()> {
     let fft_output_buffer = Arc::new(Mutex::new(Vec::<f32>::new()));
     let visualization_enabled = Arc::new(Mutex::new(false));
     let last_visualization_time = Arc::new(Mutex::new(Instant::now()));
+    let last_frame_data = Arc::new(Mutex::new((Vec::<f32>::new(), Vec::<f32>::new()))); // (input, output)
     
     // Audio processing parameters (adjustable)
     let sample_rate = 44100.0;
