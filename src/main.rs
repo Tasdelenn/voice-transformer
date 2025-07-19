@@ -73,11 +73,12 @@ fn perform_fft_visualization(
 }
 
 // Display frequency spectrum visualization
-fn display_frequency_spectrum(
+fn display_frequency_spectrum_animated(
     spectrum: &[f32], 
     sample_rate: f32, 
     width: usize,
-    height: usize
+    height: usize,
+    frame_count: u64
 ) {
     if spectrum.is_empty() {
         return;
@@ -94,11 +95,11 @@ fn display_frequency_spectrum(
     
     let freq_resolution = sample_rate / spectrum.len() as f32 / 2.0;
     
-    println!("\n🎵 FREQUENCY SPECTRUM ANALYZER 🎵");
+    println!("\n🎵 CONTINUOUS FREQUENCY SPECTRUM 🎵 Frame: {}", frame_count);
     println!("═══════════════════════════════════════════════════════════════════════════════");
     println!("Sample Rate: {:.0} Hz | FFT Size: {} | Freq Resolution: {:.1} Hz/bin", 
              sample_rate, spectrum.len() * 2, freq_resolution);
-    println!("Max Magnitude: {:.4} | Press 'x' to exit visualization", max_magnitude);
+    println!("Max Magnitude: {:.4}", max_magnitude);
     println!("═══════════════════════════════════════════════════════════════════════════════");
     
     // Display frequency bars
@@ -523,38 +524,53 @@ fn main() -> Result<()> {
                 println!("Smoothing factor set to: {}", new_smooth);
             },
             Some('w') => {
-                // Toggle frequency spectrum visualization
-                println!("\n🎵 Starting Frequency Spectrum Visualization...");
-                println!("Press any key to exit visualization mode.");
+                // Start continuous frequency spectrum visualization in separate thread
+                println!("\n🎵 Starting Continuous Frequency Spectrum Visualization...");
+                println!("Press Enter to stop visualization and return to menu.");
                 
-                loop {
-                    // Get current FFT buffer data
-                    let buffer_data = if let Ok(buffer) = fft_input_vis.try_lock() {
-                        if buffer.len() >= fft_size {
-                            buffer.clone()
+                // Create a flag to control visualization thread
+                let viz_running = Arc::new(std::sync::atomic::AtomicBool::new(true));
+                let viz_running_clone = viz_running.clone();
+                let fft_input_thread = fft_input_vis.clone();
+                
+                // Spawn visualization thread
+                let viz_thread = std::thread::spawn(move || {
+                    let mut frame_count = 0u64;
+                    let start_time = std::time::Instant::now();
+                    
+                    while viz_running_clone.load(std::sync::atomic::Ordering::Relaxed) {
+                        // Get current FFT buffer data
+                        let buffer_data = if let Ok(buffer) = fft_input_thread.try_lock() {
+                            if buffer.len() >= fft_size {
+                                buffer.clone()
+                            } else {
+                                vec![0.0; fft_size]
+                            }
                         } else {
                             vec![0.0; fft_size]
-                        }
-                    } else {
-                        vec![0.0; fft_size]
-                    };
-                    
-                    // Perform FFT and display spectrum
-                    let spectrum = perform_fft_visualization(&buffer_data, sample_rate, fft_size);
-                    display_frequency_spectrum(&spectrum, sample_rate, 80, 20);
-                    
-                    // Check for exit key (non-blocking)
-                    std::thread::sleep(Duration::from_millis(100));
-                    
-                    // Simple exit mechanism - this is a basic implementation
-                    // In a real application, you'd want proper non-blocking input
-                    use std::io::Read;
-                    let mut stdin = io::stdin();
-                    let mut buffer = [0; 1];
-                    if let Ok(_) = stdin.read(&mut buffer) {
-                        break;
+                        };
+                        
+                        // Perform FFT and display spectrum
+                        let spectrum = perform_fft_visualization(&buffer_data, sample_rate, fft_size);
+                        display_frequency_spectrum_animated(&spectrum, sample_rate, 80, 20, frame_count);
+                        
+                        frame_count += 1;
+                        
+                        // Control frame rate (adjustable: 20-50 FPS range)
+                        // 20 FPS = 50ms, 30 FPS = 33ms, 50 FPS = 20ms
+                        let fps = 30; // You can change this to 20-50
+                        let frame_time_ms = 1000 / fps;
+                        std::thread::sleep(Duration::from_millis(frame_time_ms));
                     }
-                }
+                });
+                
+                // Wait for user input to stop visualization
+                let mut input = String::new();
+                io::stdin().read_line(&mut input).unwrap();
+                
+                // Stop visualization thread
+                viz_running.store(false, std::sync::atomic::Ordering::Relaxed);
+                viz_thread.join().unwrap();
                 
                 // Clear screen and return to main menu
                 print!("\x1B[2J\x1B[H");
