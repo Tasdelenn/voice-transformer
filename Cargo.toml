@@ -13,3 +13,12 @@ anyhow = "1.0.75"  # Error handling
 rustfft = "6.1.0"  # FFT for audio processing
 realfft = "3.3.0"  # Optimized FFT for real numbers
 hound = "3.5.1"  # WAV file handling
+crossterm = "0.27.0"  # Terminal control for visualization
+num-complex = "0.4.4"  # Complex number support for FFT
+warp = "0.3.6"  # Web server framework
+tokio = { version = "1.0", features = ["full"] }  # Async runtime
+serde = { version = "1.0", features = ["derive"] }  # Serialization
+serde_json = "1.0"  # JSON serialization
+tungstenite = "0.20.1"  # WebSocket support
+tokio-tungstenite = "0.20.1"  # Async WebSocket
+futures-util = "0.3"  # Futures utilities for async streams
