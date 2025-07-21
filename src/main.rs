@@ -1,18 +1,15 @@
 use anyhow::Result;
 use clap::Parser;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::{Sample, SampleFormat};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use std::sync::Mutex;
 use std::f32::consts::PI;
 use std::io::{self, Write};
-use std::thread;
 use std::time::{Duration, Instant};
 use rustfft::{FftPlanner, num_complex::Complex};
-use crossterm::{
-    terminal::{self, ClearType},
-    cursor, execute,
-    style::{Color, Print, SetForegroundColor, ResetColor},
-};
+
+mod web_server;
+use web_server::{start_web_server, broadcast_fft_data};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -24,6 +21,10 @@ struct Args {
     /// Input device ID
     #[arg(long)]
     device: Option<usize>,
+
+    /// Start web interface (default: disabled)
+    #[arg(long)]
+    web: bool,
 }
 
 // Cubic interpolation function for smoother audio resampling
@@ -38,7 +39,7 @@ fn cubic_interpolate(p0: f32, p1: f32, p2: f32, p3: f32, t: f32) -> f32 {
 // FFT visualization function
 fn perform_fft_visualization(
     input_buffer: &[f32], 
-    sample_rate: f32,
+    _sample_rate: f32,
     fft_size: usize
 ) -> Vec<f32> {
     if input_buffer.len() < fft_size {
@@ -158,7 +159,8 @@ fn display_frequency_spectrum_animated(
     println!("\nColor Legend: \x1B[31m█\x1B[0m Bass(0-250Hz) \x1B[33m█\x1B[0m Low-Mid(250-500Hz) \x1B[32m█\x1B[0m Mid(500-2kHz) \x1B[36m█\x1B[0m High-Mid(2-6kHz) \x1B[35m█\x1B[0m High(6kHz+)");
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     let args = Args::parse();
     let host = cpal::default_host();
 
@@ -212,7 +214,7 @@ fn main() -> Result<()> {
     let fft_output_buffer = Arc::new(Mutex::new(Vec::<f32>::new()));
     let visualization_enabled = Arc::new(Mutex::new(false));
     let last_visualization_time = Arc::new(Mutex::new(Instant::now()));
-    let last_frame_data = Arc::new(Mutex::new((Vec::<f32>::new(), Vec::<f32>::new()))); // (input, output)
+    let _last_frame_data = Arc::new(Mutex::new((Vec::<f32>::new(), Vec::<f32>::new()))); // (input, output)
     
     // Audio processing parameters (adjustable)
     let sample_rate = 44100.0;
@@ -230,7 +232,7 @@ fn main() -> Result<()> {
     let adaptive_threshold = Arc::new(Mutex::new(0.01f32));
     
     // Simple resampling ratio
-    let resample_ratio = 48000.0 / 44100.0;
+    let _resample_ratio = 48000.0 / 44100.0;
 
 // Configure the audio stream - use separate configs for input and output
     let mut input_configs = input_device.supported_input_configs()?;
@@ -269,15 +271,15 @@ fn main() -> Result<()> {
             let mut phase = phase_acc.lock().unwrap();
             
             // Get current parameters
-            let volume = vol_clone.lock().unwrap();
-            let noise_threshold = noise_clone.lock().unwrap();
-            let attack = attack_clone.lock().unwrap();
-            let release = release_clone.lock().unwrap();
-            let smoothing_factor = smoothing_clone.lock().unwrap();
+            let volume = *vol_clone.lock().unwrap();
+            let noise_threshold = *noise_clone.lock().unwrap();
+            let attack = *attack_clone.lock().unwrap();
+            let release = *release_clone.lock().unwrap();
+            let smoothing_factor = *smoothing_clone.lock().unwrap();
             let mut envelope = envelope_clone.lock().unwrap();
             let mut adaptive_thresh = adaptive_threshold_clone.lock().unwrap();
-            let freq_shift = freq_clone.lock().unwrap();
-            let buffer_size_limit = buffer_limit_clone.lock().unwrap();
+            let freq_shift = *freq_clone.lock().unwrap();
+            let buffer_size_limit = *buffer_limit_clone.lock().unwrap();
             
             // Update adaptive threshold based on recent signal levels
             let signal_level = data.iter().map(|x| x.abs()).sum::<f32>() / data.len() as f32;
@@ -286,7 +288,7 @@ fn main() -> Result<()> {
             // Process each sample with smoother algorithms
             for sample in data {
                 // Improved frequency shifting with smoother modulation
-                *phase += 2.0 * PI * *freq_shift / sample_rate;
+                *phase += 2.0 * PI * freq_shift / sample_rate;
                 if *phase >= 2.0 * PI {
                     *phase -= 2.0 * PI;
                 }
@@ -296,7 +298,7 @@ fn main() -> Result<()> {
                 
                 // Advanced noise gate with attack/release and smoothing
                 let sample_level = shifted_sample.abs();
-                let target_envelope = if sample_level > *noise_threshold {
+                let target_envelope = if sample_level > noise_threshold {
                     sample_level
                 } else {
                     0.0
@@ -304,26 +306,26 @@ fn main() -> Result<()> {
                 
                 // Apply attack/release timing
                 let time_constant = if target_envelope > *envelope {
-                    *attack  // Attack time when signal is rising
+                    attack  // Attack time when signal is rising
                 } else {
-                    *release // Release time when signal is falling
+                    release // Release time when signal is falling
                 };
                 
                 // Update envelope with smoothing
                 let alpha = (-1.0 / (sample_rate * time_constant)).exp();
                 *envelope = *envelope * alpha + target_envelope * (1.0 - alpha);
-                *envelope = *envelope * *smoothing_factor + target_envelope * (1.0 - *smoothing_factor);
+                *envelope = *envelope * smoothing_factor + target_envelope * (1.0 - smoothing_factor);
                 
                 // Enhanced noise gate with smoother transition curve
-                let gate_multiplier = if *envelope > *noise_threshold {
+                let gate_multiplier = if *envelope > noise_threshold {
                     1.0
                 } else {
-                    let ratio = *envelope / *noise_threshold;
+                    let ratio = *envelope / noise_threshold;
                     let curve = ratio.powf(1.5); // Gentler power curve
                     curve * (0.15 + 0.85 * ratio) // Smoother transition near threshold
                 };
                 
-                let processed_sample = shifted_sample * *volume * gate_multiplier;
+                let processed_sample = shifted_sample * volume * gate_multiplier;
                 
                 buffer.push(processed_sample);
                 
@@ -350,8 +352,8 @@ fn main() -> Result<()> {
                 }
             }
             // Keep buffer size manageable
-            if buffer.len() > *buffer_size_limit {
-                let excess = buffer.len() - *buffer_size_limit;
+            if buffer.len() > buffer_size_limit {
+                let excess = buffer.len() - buffer_size_limit;
                 buffer.drain(0..excess);
             }
         },
@@ -385,6 +387,50 @@ fn main() -> Result<()> {
     // Start the streams
     input_stream.play()?;
     output_stream.play()?;
+
+    // Start web server if requested
+    if args.web {
+        println!("\n🌐 Starting web interface on http://localhost:3030");
+        println!("Open your browser and navigate to: http://localhost:3030");
+        
+        // Create WebSocket sender
+        let ws_sender = Arc::new(tokio::sync::Mutex::new(None));
+        start_web_server(ws_sender.clone()).await.map_err(|e| anyhow::anyhow!(e))?;
+        
+        // Spawn FFT data broadcasting task
+        let fft_input_web = fft_input_buffer.clone();
+        let fft_output_web = fft_output_buffer.clone();
+        let ws_sender_clone = ws_sender.clone();
+        
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(Duration::from_millis(33)); // ~30 FPS
+            loop {
+                interval.tick().await;
+                
+                let input_data = if let Ok(buffer) = fft_input_web.try_lock() {
+                    if buffer.len() >= fft_size {
+                        perform_fft_visualization(&buffer, sample_rate, fft_size)
+                    } else {
+                        vec![0.0; fft_size / 2]
+                    }
+                } else {
+                    vec![0.0; fft_size / 2]
+                };
+                
+                let output_data = if let Ok(buffer) = fft_output_web.try_lock() {
+                    if buffer.len() >= fft_size {
+                        perform_fft_visualization(&buffer, sample_rate, fft_size)
+                    } else {
+                        vec![0.0; fft_size / 2]
+                    }
+                } else {
+                    vec![0.0; fft_size / 2]
+                };
+                
+                broadcast_fft_data(&ws_sender_clone, input_data, output_data, sample_rate, fft_size).await;
+            }
+        });
+    }
 
     // User interface for real-time adjustments in main thread
     let vol = volume.clone();
@@ -436,10 +482,10 @@ fn main() -> Result<()> {
     // Display initial settings
     display_settings();
     
-    let vis_enabled = visualization_enabled.clone();
+    let _vis_enabled = visualization_enabled.clone();
     let fft_input_vis = fft_input_buffer.clone();
-    let fft_output_vis = fft_output_buffer.clone();
-    let last_vis_time = last_visualization_time.clone();
+    let _fft_output_vis = fft_output_buffer.clone();
+    let _last_vis_time = last_visualization_time.clone();
     
     loop {
         print!("\nCommands: (v)olume, (n)oise, (a)ttack, (r)elease, (s)moothing, (f)req shift, (b)uffer, (w)aveform viz, (d)efault, (i)nfo, (q)uit: ");
@@ -537,7 +583,6 @@ fn main() -> Result<()> {
                 // Spawn visualization thread
                 let viz_thread = std::thread::spawn(move || {
                     let mut frame_count = 0u64;
-                    let start_time = std::time::Instant::now();
                     
                     while viz_running_clone.load(std::sync::atomic::Ordering::Relaxed) {
                         // Get current FFT buffer data

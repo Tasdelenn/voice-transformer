@@ -1,6 +1,6 @@
-# Voice Transformer v1.1 (Rust Edition with Visualization)
+# Voice Transformer v2.0 (Rust Edition with Web Interface)
 
-A real-time voice processing tool written in Rust, designed for minimal latency. This project was originally started in Python and has been completely rewritten in Rust for better performance and control.
+A real-time voice processing tool written in Rust, designed for minimal latency with both terminal and web-based interfaces. This project was originally started in Python and has been completely rewritten in Rust for better performance and control.
 
 ## Features
 
@@ -8,7 +8,9 @@ A real-time voice processing tool written in Rust, designed for minimal latency.
 - **Feedback Prevention**: Implements a subtle frequency shift to prevent audio feedback loops in real-time.
 - **Noise Reduction**: Includes a basic noise gate to filter out background noise below a certain threshold.
 - **Interactive Real-Time Controls**: Adjust parameters like volume, noise gate threshold, frequency shift, and buffer size while the application is running.
-- **🎵 Real-Time Frequency Spectrum Visualization**: Live FFT-based frequency spectrum analyzer with color-coded frequency bands, showing both frequency and amplitude values in the terminal.
+- **🎵 Terminal Visualization**: Live FFT-based frequency spectrum analyzer with color-coded frequency bands in the terminal.
+- **🌐 Web Interface**: Modern browser-based visualization with real-time WebSocket streaming for enhanced visual experience.
+- **Dual Mode Operation**: Choose between terminal-only mode or web interface with live data streaming.
 
 ## Requirements
 
@@ -39,13 +41,17 @@ A real-time voice processing tool written in Rust, designed for minimal latency.
 
 The compiled executable will be in `./target/release/` or `./target/debug/`.
 
+### Basic Setup
+
 1.  **List available audio devices:**
     ```bash
     cargo run -- --list-devices
     ```
     This will show you a list of input device IDs you can use.
 
-2.  **Run the application:**
+### Terminal Mode
+
+2.  **Run the application in terminal mode:**
     To run with the default input device:
     ```bash
     cargo run --release
@@ -55,6 +61,24 @@ The compiled executable will be in `./target/release/` or `./target/debug/`.
     cargo run --release -- --device <DEVICE_ID>
     ```
     Replace `<DEVICE_ID>` with the ID of your input device from the list.
+
+### Web Interface Mode
+
+3.  **Run the application with web interface:**
+    ```bash
+    cargo run --release -- --web
+    ```
+    Or with a specific device:
+    ```bash
+    cargo run --release -- --web --device <DEVICE_ID>
+    ```
+    
+    Once running:
+    - Open your web browser and navigate to: `http://localhost:3030`
+    - You'll see a real-time frequency spectrum visualization
+    - The web interface displays both input (microphone) and output (processed) audio spectrums
+    - Data is streamed via WebSocket for smooth, low-latency updates
+    - The visualization automatically scales and updates in real-time
 
 3.  **Interactive Commands:**
     Once running, you can use the following keys to adjust settings in real-time:
