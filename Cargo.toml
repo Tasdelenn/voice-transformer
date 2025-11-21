@@ -5,11 +5,29 @@ edition = "2021"
 authors = ["Tasdelenn"]
 description = "Real-time voice processing tool with minimal latency"
 
+
+[lib]
+name = "voice_transformer_lib"
+path = "src/lib.rs"
+
+[[bin]]
+name = "sender"
+path = "src/bin/sender.rs"
+
+[[bin]]
+name = "receiver"
+path = "src/bin/receiver.rs"
+
 [dependencies]
-cpal = "0.15.2"  # Audio I/O
-rodio = "0.17.3"  # Audio processing
-clap = { version = "4.4.8", features = ["derive"] }  # CLI arguments
-anyhow = "1.0.75"  # Error handling
-rustfft = "6.1.0"  # FFT for audio processing
-realfft = "3.3.0"  # Optimized FFT for real numbers
-hound = "3.5.1"  # WAV file handling
+cpal = "0.15.2"
+rodio = "0.17.3"
+clap = { version = "4.4.8", features = ["derive"] }
+anyhow = "1.0.75"
+rustfft = "6.1.0"
+realfft = "3.3.0"
+hound = "3.5.1"
+tokio = { version = "1.32", features = ["full"] }
+quinn = "0.11"
+bytes = "1.5"
+rcgen = "0.13"
+rustls = { version = "0.23", features = ["ring"] }

@@ -1,0 +1,141 @@
+﻿cargo :  Downloading crates ...
+At line:1 char:1
++ cargo check 2>&1 | Out-File -Encoding utf8 build_dsp
+.txt
++ ~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ( Do    wn
+loading crates ...:String) [], RemoteExcep    tion
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  Downloaded rustc-demangle v0.1.26
+  Downloaded memchr v2.7.5
+  Downloaded libloading v0.8.8
+  Downloaded prettyplease v0.2.36
+  Downloaded backtrace v0.3.76
+  Downloaded bindgen v0.72.0
+  Downloaded webrtc-audio-processing-sys v0.3.2
+  Downloaded webrtc-audio-processing v0.3.3
+   Compiling memchr v2.7.5
+   Compiling glob v0.3.2
+   Compiling syn v1.0.109
+   Compiling windows_x86_64_msvc v0.53.0
+   Compiling libc v0.2.174
+   Compiling prettyplease v0.2.36
+   Compiling minimal-lexical v0.2.1
+   Compiling regex-syntax v0.8.5
+   Compiling windows-targets v0.53.2
+   Compiling failure_derive v0.1.8
+   Compiling unicode-xid v0.2.6
+   Compiling libloading v0.8.8
+   Compiling either v1.15.0
+   Compiling rustc-demangle v0.1.26
+   Compiling bindgen v0.72.0
+   Compiling windows-link v0.2.1
+   Compiling itertools v0.13.0
+   Compiling clang-sys v1.8.1
+   Compiling aho-corasick v1.1.3
+   Compiling nom v7.1.3
+   Compiling backtrace v0.3.76
+   Compiling log v0.4.27
+   Compiling bitflags v2.9.1
+   Compiling rustc-hash v2.1.1
+   Compiling autotools v0.2.7
+   Compiling pkg-config v0.3.32
+   Compiling regex-automata v0.4.9
+   Compiling thiserror-impl v2.0.17
+    Checking tokio v1.48.0
+   Compiling synstructure v0.12.6
+   Compiling cexpr v0.6.0
+    Checking thiserror v2.0.17
+    Checking quinn-proto v0.11.13
+   Compiling failure v0.1.8
+   Compiling regex v1.11.1
+    Checking quinn v0.11.9
+   Compiling webrtc-audio-processing-sys v0.3.2
+error: failed to run custom build command for `webrtc-
+audio-processing-sys v0.3.2`
+
+Caused by:
+  process didn't exit successfully: `C:\dev\voice-tran
+sformer\target\debug\build\webrtc-audio-processing-sys
+-989657b37d7b1ff9\build-script-build` (exit code: 1)
+  --- stdout
+  cargo:rerun-if-env-changed=WEBRTC_AUDIO_PROCESSING_N
+O_PKG_CONFIG
+  cargo:rerun-if-env-changed=PKG_CONFIG_x86_64-pc-wind
+ows-msvc
+  cargo:rerun-if-env-changed=PKG_CONFIG_x86_64_pc_wind
+ows_msvc
+  cargo:rerun-if-env-changed=HOST_PKG_CONFIG
+  cargo:rerun-if-env-changed=PKG_CONFIG
+  cargo:rerun-if-env-changed=WEBRTC_AUDIO_PROCESSING_S
+TATIC
+  cargo:rerun-if-env-changed=WEBRTC_AUDIO_PROCESSING_D
+YNAMIC
+  cargo:rerun-if-env-changed=PKG_CONFIG_ALL_STATIC
+  cargo:rerun-if-env-changed=PKG_CONFIG_ALL_DYNAMIC
+  cargo:rerun-if-env-changed=PKG_CONFIG_PATH_x86_64-pc
+-windows-msvc
+  cargo:rerun-if-env-changed=PKG_CONFIG_PATH_x86_64_pc
+_windows_msvc
+  cargo:rerun-if-env-changed=HOST_PKG_CONFIG_PATH
+  cargo:rerun-if-env-changed=PKG_CONFIG_PATH
+  cargo:rerun-if-env-changed=PKG_CONFIG_LIBDIR_x86_64-
+pc-windows-msvc
+  cargo:rerun-if-env-changed=PKG_CONFIG_LIBDIR_x86_64_
+pc_windows_msvc
+  cargo:rerun-if-env-changed=HOST_PKG_CONFIG_LIBDIR
+  cargo:rerun-if-env-changed=PKG_CONFIG_LIBDIR
+  cargo:rerun-if-env-changed=PKG_CONFIG_SYSROOT_DIR_x8
+6_64-pc-windows-msvc
+  cargo:rerun-if-env-changed=PKG_CONFIG_SYSROOT_DIR_x8
+6_64_pc_windows_msvc
+  cargo:rerun-if-env-changed=HOST_PKG_CONFIG_SYSROOT_D
+IR
+  cargo:rerun-if-env-changed=PKG_CONFIG_SYSROOT_DIR
+  cargo:rerun-if-env-changed=WEBRTC_AUDIO_PROCESSING_S
+TATIC
+  cargo:rerun-if-env-changed=WEBRTC_AUDIO_PROCESSING_D
+YNAMIC
+  cargo:rerun-if-env-changed=PKG_CONFIG_ALL_STATIC
+  cargo:rerun-if-env-changed=PKG_CONFIG_ALL_DYNAMIC
+  cargo:rerun-if-env-changed=PKG_CONFIG_PATH_x86_64-pc
+-windows-msvc
+  cargo:rerun-if-env-changed=PKG_CONFIG_PATH_x86_64_pc
+_windows_msvc
+  cargo:rerun-if-env-changed=HOST_PKG_CONFIG_PATH
+  cargo:rerun-if-env-changed=PKG_CONFIG_PATH
+  cargo:rerun-if-env-changed=PKG_CONFIG_LIBDIR_x86_64-
+pc-windows-msvc
+  cargo:rerun-if-env-changed=PKG_CONFIG_LIBDIR_x86_64_
+pc_windows_msvc
+  cargo:rerun-if-env-changed=HOST_PKG_CONFIG_LIBDIR
+  cargo:rerun-if-env-changed=PKG_CONFIG_LIBDIR
+  cargo:rerun-if-env-changed=PKG_CONFIG_SYSROOT_DIR_x8
+6_64-pc-windows-msvc
+  cargo:rerun-if-env-changed=PKG_CONFIG_SYSROOT_DIR_x8
+6_64_pc_windows_msvc
+  cargo:rerun-if-env-changed=HOST_PKG_CONFIG_SYSROOT_D
+IR
+  cargo:rerun-if-env-changed=PKG_CONFIG_SYSROOT_DIR
+
+  --- stderr
+  Error: Could not run `PKG_CONFIG_ALLOW_SYSTEM_LIBS=1
+ PKG_CONFIG_ALLOW_SYSTEM_CFLAGS=1 pkg-config --libs --
+cflags webrtc-audio-processing`
+  The pkg-config command could not be found.
+
+  Most likely, you need to install a pkg-config packag
+e for your OS.
+
+  If you've already installed it, ensure the pkg-confi
+g command is one of the
+  directories in the PATH environment variable.
+
+  If you did not expect this build to link to a pre-in
+stalled system library,
+  then check documentation of the webrtc-audio-process
+ing-sys crate for an option to
+  build the library from source, or disable features o
+r dependencies
+  that require pkg-config.

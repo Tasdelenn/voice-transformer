@@ -1,0 +1,83 @@
+﻿cargo :     Checking voice_transformer v0.1.0 (C:\dev\
+voice-transformer)
+At line:1 char:1
++ cargo check 2>&1 | Out-File -Encoding utf8 build_err
+ors.txt
++ ~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (    Chec 
+   king vo...ce-transformer):String) [], RemoteExcep  
+  tion
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+warning: unused import: `std::sync::Arc`
+ --> src\audio.rs:3:5
+  |
+3 | use std::sync::Arc;
+  |     ^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `Context`
+ --> src\network.rs:1:14
+  |
+1 | use anyhow::{Context, Result};
+  |              ^^^^^^^
+
+error[E0599]: no method named `with_no_client_auth` fo
+und for struct `ConfigBuilder<rustls::ClientConfig, Wa
+ntsVerifier>` in the current scope
+  --> src\network.rs:21:14
+   |
+20 | /         rustls::ClientConfig::builder()
+21 | |             .with_no_client_auth()
+   | |             -^^^^^^^^^^^^^^^^^^^ method not fou
+nd in `ConfigBuilder<ClientConfig, WantsVerifier>`
+   | |_____________|
+   |
+   |
+   = note: the method was found for
+           - `ConfigBuilder<rustls::ClientConfig, Want
+sClientCert>`
+           - `ConfigBuilder<rustls::ServerConfig, Want
+sVerifier>`
+
+error[E0599]: no method named `serialize_private_key_d
+er` found for struct `rcgen::CertifiedKey` in the curr
+ent scope
+  --> src\network.rs:37:24
+   |
+37 |     let key_der = cert.serialize_private_key_der(
+);
+   |                        ^^^^^^^^^^^^^^^^^^^^^^^^^ 
+method not found in `CertifiedKey`
+
+error[E0599]: no method named `serialize_der` found fo
+r struct `rcgen::CertifiedKey` in the current scope
+  --> src\network.rs:38:25
+   |
+38 |     let cert_der = cert.serialize_der()?;
+   |                         ^^^^^^^^^^^^^ method not 
+found in `CertifiedKey`
+   |
+help: one of the expressions' fields has a method of t
+he same name
+   |
+38 |     let cert_der = cert.key_pair.serialize_der()?
+;
+   |                         +++++++++
+
+warning: unused variable: `channels`
+  --> src\audio.rs:52:13
+   |
+52 |         let channels = config.channels as usize;
+   |             ^^^^^^^^ help: if this is intentional
+, prefix it with an underscore: `_channels`
+   |
+   = note: `#[warn(unused_variables)]` on by default
+
+For more information about this error, try `rustc --ex
+plain E0599`.
+warning: `voice_transformer` (lib) generated 3 warning
+s
+error: could not compile `voice_transformer` (lib) due
+ to 3 previous errors; 3 warnings emitted
