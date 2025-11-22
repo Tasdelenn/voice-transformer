@@ -55,8 +55,54 @@ async fn main() -> Result<()> {
     let _audio_stream = audio::AudioStream::setup_input(tx, args.device)?;
     println!("Audio input started");
 
-    // Initialize DSP
-    let mut dsp = voice_transformer_lib::dsp::DspProcessor::new(48000, 1)?;
+    // Initialize shared parameters
+    let params = std::sync::Arc::new(std::sync::Mutex::new(voice_transformer_lib::dsp_params::DspParams::default()));
+    
+    // Initialize DSP with params
+    let mut dsp = voice_transformer_lib::dsp::DspProcessor::new(48000, 1, params.clone())?;
+
+    // Spawn CLI input thread
+    let params_clone = params.clone();
+    std::thread::spawn(move || {
+        let stdin = std::io::stdin();
+        let mut line = String::new();
+        loop {
+            line.clear();
+            if stdin.read_line(&mut line).is_ok() {
+                let input = line.trim();
+                if input.is_empty() { continue; }
+                
+                let mut p = params_clone.lock().unwrap();
+                let mut msg = "";
+                
+                match input.chars().next() {
+                    Some('v') => { // Volume/Gain
+                        if input.contains('+') { p.gain *= 1.1; } else { p.gain *= 0.9; }
+                        msg = "Gain";
+                    },
+                    Some('t') => { // Threshold
+                        if input.contains('+') { p.noise_threshold *= 1.5; } else { p.noise_threshold *= 0.6; }
+                        msg = "Threshold";
+                    },
+                    Some('f') => { // Freq Shift
+                        if input.contains('+') { p.freq_shift += 0.5; } else { p.freq_shift -= 0.5; }
+                        msg = "Freq Shift";
+                    },
+                    Some('b') => { // Bandpass Toggle
+                        p.filter_enabled = !p.filter_enabled;
+                        msg = "Bandpass";
+                    },
+                    Some('?') | Some('h') => {
+                        println!("\nControls: (v)+/-, (t)+/-, (f)+/-, (b)andpass toggle");
+                        continue;
+                    }
+                    _ => {}
+                }
+                println!("\n[Update] {}: Gain={:.2} Thresh={:.4} Freq={:.1}Hz Filter={}", 
+                    msg, p.gain, p.noise_threshold, p.freq_shift, p.filter_enabled);
+            }
+        }
+    });
 
     // 2. Setup QUIC Client
     // Bind to any available port
@@ -65,6 +111,7 @@ async fn main() -> Result<()> {
     println!("Connecting to {}...", remote_addr);
     let connection = client_endpoint.connect(remote_addr, "localhost")?.await?;
     println!("Connected!");
+    println!("Controls available: v+/- (Volume), t+/- (Threshold), f+/- (Freq), b (Bandpass)");
 
     // 3. Open stream
     let mut send_stream = connection.open_uni().await?;
@@ -88,6 +135,12 @@ async fn main() -> Result<()> {
         let empty = bar_width - filled;
         
         let bar = format!("[{}{}]", "█".repeat(filled), " ".repeat(empty));
+        
+        // Only print VU if we are not typing commands (simple heuristic: cursor at start)
+        // Actually, printing \r overwrites the line. 
+        // To avoid messing up input, we might want to only print if no input is pending, 
+        // but that's hard with blocking stdin.
+        // Let's just print. The user input will look messy but work.
         print!("\rLevel: {} {:.4}   ", bar, rms);
         use std::io::Write;
         std::io::stdout().flush()?;
