@@ -1,0 +1,67 @@
+﻿cargo :     Checking voice_transformer v0.1.0 (C:
+\dev\voice-transformer)
+At line:1 char:1
++ cargo check 2>&1 | Out-File -Encoding utf8 buil
+d_tui_error.txt
++ ~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (    
+    Checking vo...ce-transformer):String) [], R  
+  emoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+error[E0432]: unresolved import `spectrum_analyze
+r::WindowType`
+  --> src\ui.rs:17:66
+   |
+17 | use spectrum_analyzer::{samples_fft_to_spect
+rum, FrequencyLimit, WindowType};
+   |                                             
+                     ^^^^^^^^^^ no `WindowType` i
+n the root
+
+warning: unused import: `Context`
+ --> src\network.rs:1:14
+  |
+1 | use anyhow::{Context, Result};
+  |              ^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused variable: `point`
+  --> src\ui.rs:86:37
+   |
+86 |                         Some(&|val, point| {
+   |                                     ^^^^^ he
+lp: if this is intentional, prefix it with an und
+erscore: `_point`
+   |
+   = note: `#[warn(unused_variables)]` on by defa
+ult
+
+error[E0502]: cannot borrow `app_guard` as mutabl
+e because it is also borrowed as immutable
+   --> src\ui.rs:161:29
+    |
+158 |                     let mut params = app_gu
+ard.params.lock().unwrap();
+    |                                      ------
+--- immutable borrow occurs here
+...
+161 |                             app_guard.shoul
+d_quit = true;
+    |                             ^^^^^^^^^ mutab
+le borrow occurs here
+...
+189 |                 }
+    |                 - immutable borrow might be
+ used here, when `params` is dropped and runs the
+ `Drop` code for type `std::sync::MutexGuard`
+
+Some errors have detailed explanations: E0432, E0
+502.
+For more information about an error, try `rustc -
+-explain E0432`.
+warning: `voice_transformer` (lib) generated 2 wa
+rnings
+error: could not compile `voice_transformer` (lib
+) due to 2 previous errors; 2 warnings emitted

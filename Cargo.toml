@@ -31,3 +31,6 @@ quinn = "0.11"
 bytes = "1.5"
 rcgen = "0.13"
 rustls = { version = "0.23", features = ["ring"] }
+ratatui = "0.26"
+crossterm = "0.27"
+spectrum-analyzer = "1.5"
