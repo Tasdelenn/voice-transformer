@@ -74,10 +74,11 @@ pub fn run_tui(app: Arc<Mutex<App>>) -> Result<()> {
 
             // 2. VU Meter
             let rms = app_guard.rms_level;
+            let ratio = (rms * 5.0).clamp(0.0, 1.0);
             let gauge = Gauge::default()
                 .block(Block::default().title("Output Level").borders(Borders::ALL))
                 .gauge_style(Style::default().fg(if rms > 0.8 { Color::Red } else { Color::Green }))
-                .ratio((rms * 5.0).clamp(0.0, 1.0) as f64);
+                .ratio(ratio);
             f.render_widget(gauge, chunks[1]);
 
             // 3. Controls & Status
