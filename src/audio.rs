@@ -54,8 +54,15 @@ impl AudioStream {
             
         println!("Output device: {}", device.name()?);
 
-        let config = device.default_output_config()?;
-        let config: cpal::StreamConfig = config.into();
+        // Try to find a 48kHz config first, otherwise fallback to default
+        let mut supported_configs_range = device.supported_output_configs()?;
+        let config = supported_configs_range
+            .find(|c| c.max_sample_rate().0 >= 48000 && c.min_sample_rate().0 <= 48000)
+            .map(|c| c.with_sample_rate(cpal::SampleRate(48000)))
+            .unwrap_or_else(|| device.default_output_config().unwrap())
+            .config();
+            
+        println!("Output Config: Rate: {}, Channels: {}", config.sample_rate.0, config.channels);
         let _channels = config.channels as usize;
 
         let stream = device.build_output_stream(
