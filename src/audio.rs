@@ -10,6 +10,7 @@ impl AudioStream {
     pub fn setup_input(
         tx: mpsc::Sender<Vec<f32>>,
         device_index: Option<usize>,
+        sample_rate: u32,
     ) -> Result<Self> {
         let host = cpal::default_host();
         
@@ -24,8 +25,14 @@ impl AudioStream {
         
         println!("Input device: {}", device.name()?);
 
-        let config = device.default_input_config()?;
-        let config: cpal::StreamConfig = config.into();
+        let mut supported_configs_range = device.supported_input_configs()?;
+        let config = supported_configs_range
+            .find(|c| c.max_sample_rate().0 >= sample_rate && c.min_sample_rate().0 <= sample_rate)
+            .map(|c| c.with_sample_rate(cpal::SampleRate(sample_rate)))
+            .unwrap_or_else(|| device.default_input_config().unwrap())
+            .config();
+            
+        println!("Input Config: Rate: {}, Channels: {}", config.sample_rate.0, config.channels);
 
         let stream = device.build_input_stream(
             &config,
@@ -47,6 +54,7 @@ impl AudioStream {
 
     pub fn setup_output(
         mut rx: mpsc::Receiver<Vec<f32>>,
+        sample_rate: u32,
     ) -> Result<Self> {
         let host = cpal::default_host();
         let device = host.default_output_device()
@@ -54,11 +62,11 @@ impl AudioStream {
             
         println!("Output device: {}", device.name()?);
 
-        // Try to find a 48kHz config first, otherwise fallback to default
+        // Try to find a matching config first, otherwise fallback to default
         let mut supported_configs_range = device.supported_output_configs()?;
         let config = supported_configs_range
-            .find(|c| c.max_sample_rate().0 >= 48000 && c.min_sample_rate().0 <= 48000)
-            .map(|c| c.with_sample_rate(cpal::SampleRate(48000)))
+            .find(|c| c.max_sample_rate().0 >= sample_rate && c.min_sample_rate().0 <= sample_rate)
+            .map(|c| c.with_sample_rate(cpal::SampleRate(sample_rate)))
             .unwrap_or_else(|| device.default_output_config().unwrap())
             .config();
             

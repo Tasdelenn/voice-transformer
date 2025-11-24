@@ -22,6 +22,10 @@ struct Args {
     /// Input device index
     #[arg(long)]
     device: Option<usize>,
+
+    /// Sample rate (default: 44100)
+    #[arg(long, default_value = "44100")]
+    sample_rate: u32,
 }
 
 #[tokio::main]
@@ -52,8 +56,8 @@ async fn main() -> Result<()> {
     // 1. Setup Audio Input
     let (tx, mut rx) = mpsc::channel::<Vec<f32>>(100); // Buffer up to 100 chunks
     // Pass device index if specified
-    let _audio_stream = audio::AudioStream::setup_input(tx, args.device)?;
-    println!("Audio input started");
+    let _audio_stream = audio::AudioStream::setup_input(tx, args.device, args.sample_rate)?;
+    println!("Audio input started at {} Hz", args.sample_rate);
 
     // Initialize shared parameters
     let params = std::sync::Arc::new(std::sync::Mutex::new(voice_transformer_lib::dsp_params::DspParams::default()));
@@ -65,7 +69,7 @@ async fn main() -> Result<()> {
     let app = std::sync::Arc::new(std::sync::Mutex::new(voice_transformer_lib::ui::App::new(params.clone(), audio_buffer.clone())));
 
     // Initialize DSP with params
-    let mut dsp = voice_transformer_lib::dsp::DspProcessor::new(48000, 1, params.clone())?;
+    let mut dsp = voice_transformer_lib::dsp::DspProcessor::new(args.sample_rate, 1, params.clone())?;
 
     // 2. Setup QUIC Client
     // Bind to any available port

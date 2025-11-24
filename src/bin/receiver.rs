@@ -11,6 +11,10 @@ struct Args {
     /// Listen port
     #[arg(long, default_value = "5000")]
     port: u16,
+
+    /// Sample rate (default: 44100)
+    #[arg(long, default_value = "44100")]
+    sample_rate: u32,
 }
 
 #[tokio::main]
@@ -28,8 +32,8 @@ async fn main() -> Result<()> {
     // 1. Setup Audio Output
     let (tx, rx) = mpsc::channel::<Vec<f32>>(100);
     // We are not using DSP on receiver yet, so params are just for UI
-    let _audio_stream = audio::AudioStream::setup_output(rx)?;
-    println!("Audio output ready");
+    let _audio_stream = audio::AudioStream::setup_output(rx, args.sample_rate)?;
+    println!("Audio output ready at {} Hz", args.sample_rate);
 
     // 2. Setup QUIC Server
     let (endpoint, _cert) = network::make_server_endpoint(addr)?;
