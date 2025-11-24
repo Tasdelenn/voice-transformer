@@ -6,6 +6,8 @@ pub struct DspParams {
     pub freq_shift: f32,
     pub filter_enabled: bool,
     pub gain: f32,
+    pub hp_cutoff: f32,
+    pub lp_cutoff: f32,
 }
 
 impl Default for DspParams {
@@ -15,6 +17,8 @@ impl Default for DspParams {
             freq_shift: 5.0,
             filter_enabled: true,
             gain: 1.0,
+            hp_cutoff: 300.0,
+            lp_cutoff: 3400.0,
         }
     }
 }

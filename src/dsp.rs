@@ -71,6 +71,12 @@ impl DspProcessor {
             p.clone()
         };
 
+        // Update filters if params changed (simple check: just re-calc every frame for now to ensure responsiveness, optimization later)
+        // Optimization: Only update if cutoff changed.
+        // But we don't store previous params in struct yet. Let's just re-calc. It's 2 sin/cos per frame (10ms), negligible.
+        self.hp_filter = Biquad::new_highpass(self.sample_rate, params.hp_cutoff, 0.707);
+        self.lp_filter = Biquad::new_lowpass(self.sample_rate, params.lp_cutoff, 0.707);
+
         for sample in frame.iter_mut() {
             let mut s = *sample;
 

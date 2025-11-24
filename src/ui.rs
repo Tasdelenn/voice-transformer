@@ -103,6 +103,14 @@ pub fn run_tui(app: Arc<Mutex<App>>) -> Result<()> {
                         Style::default().fg(if params.filter_enabled { Color::Green } else { Color::Red })
                     ),
                 ]),
+                Line::from(vec![
+                    Span::styled("HP Cutoff (h+/-): ", Style::default().fg(Color::Yellow)),
+                    Span::raw(format!("{:.0} Hz", params.hp_cutoff)),
+                ]),
+                Line::from(vec![
+                    Span::styled("LP Cutoff (l+/-): ", Style::default().fg(Color::Yellow)),
+                    Span::raw(format!("{:.0} Hz", params.lp_cutoff)),
+                ]),
                 Line::from(""),
                 Line::from(Span::styled("Press 'q' to quit", Style::default().add_modifier(Modifier::BOLD))),
             ];
@@ -151,6 +159,24 @@ pub fn run_tui(app: Arc<Mutex<App>>) -> Result<()> {
                         KeyCode::Char('b') => {
                             let mut p = params_arc.lock().unwrap();
                             p.filter_enabled = !p.filter_enabled;
+                        }
+                        KeyCode::Char('h') => {
+                            let mut p = params_arc.lock().unwrap();
+                            p.hp_cutoff += 50.0;
+                        }
+                        KeyCode::Char('H') => {
+                            let mut p = params_arc.lock().unwrap();
+                            p.hp_cutoff -= 50.0;
+                            if p.hp_cutoff < 0.0 { p.hp_cutoff = 0.0; }
+                        }
+                        KeyCode::Char('l') => {
+                            let mut p = params_arc.lock().unwrap();
+                            p.lp_cutoff += 100.0;
+                        }
+                        KeyCode::Char('L') => {
+                            let mut p = params_arc.lock().unwrap();
+                            p.lp_cutoff -= 100.0;
+                            if p.lp_cutoff < 0.0 { p.lp_cutoff = 0.0; }
                         }
                         _ => {}
                     }
