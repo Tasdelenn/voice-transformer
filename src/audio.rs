@@ -11,7 +11,8 @@ impl AudioStream {
         tx: mpsc::Sender<Vec<f32>>,
         device_index: Option<usize>,
         sample_rate: u32,
-    ) -> Result<Self> {
+        buffer_size: u32,
+    ) -> Result<(Self, u32)> {
         let host = cpal::default_host();
         
         let device = if let Some(index) = device_index {
@@ -32,10 +33,12 @@ impl AudioStream {
             .unwrap_or_else(|| device.default_input_config().unwrap())
             .config();
         
-        // Force small buffer size for low latency
-        config.buffer_size = cpal::BufferSize::Fixed(512);
+        // Configure buffer size
+        config.buffer_size = cpal::BufferSize::Fixed(buffer_size);
+        
+        let actual_rate = config.sample_rate.0;
             
-        println!("Input Config: Rate: {}, Channels: {}, Buffer: {:?}", config.sample_rate.0, config.channels, config.buffer_size);
+        println!("Input Config: Rate: {}, Channels: {}, Buffer: {:?}", actual_rate, config.channels, config.buffer_size);
 
         let stream = device.build_input_stream(
             &config,
@@ -43,22 +46,25 @@ impl AudioStream {
                 // Send data to channel
                 // In a real low-latency app, we might want a ring buffer here
                 // to avoid allocation, but Vec<f32> is easier for prototype.
-                if let Err(e) = tx.blocking_send(data.to_vec()) {
-                    eprintln!("Failed to send audio data: {}", e);
+                if let Err(_) = tx.blocking_send(data.to_vec()) {
+                    // Silently drop if channel full (TUI shouldn't crash)
                 }
             },
-            move |err| eprintln!("Input stream error: {}", err),
+            move |_err| {
+                // Silently ignore stream errors to avoid TUI corruption
+            },
             None,
         )?;
 
         stream.play()?;
-        Ok(Self { _stream: stream })
+        Ok((Self { _stream: stream }, actual_rate))
     }
 
     pub fn setup_output(
         mut rx: mpsc::Receiver<Vec<f32>>,
         sample_rate: u32,
-    ) -> Result<Self> {
+        buffer_size: u32,
+    ) -> Result<(Self, u32)> {
         let host = cpal::default_host();
         let device = host.default_output_device()
             .ok_or_else(|| anyhow!("No output device found"))?;
@@ -73,10 +79,12 @@ impl AudioStream {
             .unwrap_or_else(|| device.default_output_config().unwrap())
             .config();
         
-        // Force small buffer size for low latency
-        config.buffer_size = cpal::BufferSize::Fixed(512);
+        // Configure buffer size
+        config.buffer_size = cpal::BufferSize::Fixed(buffer_size);
+        
+        let actual_rate = config.sample_rate.0;
             
-        println!("Output Config: Rate: {}, Channels: {}, Buffer: {:?}", config.sample_rate.0, config.channels, config.buffer_size);
+        println!("Output Config: Rate: {}, Channels: {}, Buffer: {:?}", actual_rate, config.channels, config.buffer_size);
         let _channels = config.channels as usize;
 
         let stream = device.build_output_stream(
@@ -110,11 +118,13 @@ impl AudioStream {
                     }
                 }
             },
-            move |err| eprintln!("Output stream error: {}", err),
+            move |_err| {
+                // Silently ignore errors to avoid TUI corruption
+            },
             None,
         )?;
 
         stream.play()?;
-        Ok(Self { _stream: stream })
+        Ok((Self { _stream: stream }, actual_rate))
     }
 }
