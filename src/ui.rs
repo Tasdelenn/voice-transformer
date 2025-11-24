@@ -78,7 +78,7 @@ pub fn run_tui(app: Arc<Mutex<App>>) -> Result<()> {
             let gauge = Gauge::default()
                 .block(Block::default().title("Output Level").borders(Borders::ALL))
                 .gauge_style(Style::default().fg(if rms > 0.8 { Color::Red } else { Color::Green }))
-                .ratio(ratio);
+                .ratio(ratio as f64);
             f.render_widget(gauge, chunks[1]);
 
             // 3. Controls & Status
