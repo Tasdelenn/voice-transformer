@@ -70,47 +70,7 @@ pub fn run_tui(app: Arc<Mutex<App>>) -> Result<()> {
 
             // 1. Spectrum Analyzer
             let buffer = app_guard.audio_buffer.lock().unwrap().clone();
-            let mut spectrum_data = vec![];
-            
-            if buffer.len() >= 256 {
-                // Take last 1024 samples or max available power of 2
-                let fft_len = 1024.min(buffer.len().next_power_of_two() / 2); 
-                // Actually spectrum_analyzer needs power of 2. 
-                // Let's just take a slice if possible.
-                if fft_len > 0 {
-                     // Simple FFT
-                    let spectrum = samples_fft_to_spectrum(
-                        &buffer[0..fft_len], // Just take the beginning for now, ideally a ring buffer
-                        48000,
-                        FrequencyLimit::Range(0.0, 5000.0), // Focus on 0-5kHz
-                        Some(&|val, _point| {
-                            // Scaling function if needed
-                            val
-                        }),
-                    );
-                    
-                    if let Ok(spec) = spectrum {
-                        for (fr, val) in spec.data().iter() {
-                            spectrum_data.push((fr.val() as f64, val.val() as f64));
-                        }
-                    }
-                }
-            }
-
-            let datasets = vec![
-                Dataset::default()
-                    .name("Spectrum")
-                    .marker(symbols::Marker::Braille)
-                    .graph_type(GraphType::Line)
-                    .style(Style::default().fg(Color::Cyan))
-                    .data(&spectrum_data),
-            ];
-
-            let chart = Chart::new(datasets)
-                .block(Block::default().title("Frequency Spectrum (0-5kHz)").borders(Borders::ALL))
-                .x_axis(Axis::default().title("Freq (Hz)").bounds([0.0, 5000.0]))
-                .y_axis(Axis::default().title("Mag").bounds([0.0, 100.0])); // Magnitude scaling might need tuning
-            f.render_widget(chart, chunks[0]);
+            draw_spectrum(f, chunks[0], &buffer, "Frequency Spectrum (0-5kHz)");
 
             // 2. VU Meter
             let rms = app_guard.rms_level;
@@ -217,4 +177,61 @@ pub fn run_tui(app: Arc<Mutex<App>>) -> Result<()> {
     terminal.show_cursor()?;
 
     Ok(())
+}
+
+// Helper function to draw spectrum
+pub fn draw_spectrum(f: &mut ratatui::Frame, area: ratatui::layout::Rect, buffer: &[f32], title: &str) {
+    let mut spectrum_data = vec![];
+    
+    if buffer.len() >= 256 {
+        // Take last 1024 samples or max available power of 2
+        let fft_len = 1024.min(buffer.len().next_power_of_two() / 2); 
+        if fft_len > 0 {
+             // Simple FFT
+            let spectrum = samples_fft_to_spectrum(
+                &buffer[0..fft_len], 
+                48000,
+                FrequencyLimit::Range(0.0, 5000.0), // Focus on 0-5kHz
+                Some(&|val, _point| {
+                    val
+                }),
+            );
+            
+            if let Ok(spec) = spectrum {
+                for (fr, val) in spec.data().iter() {
+                    spectrum_data.push((fr.val() as f64, val.val() as f64));
+                }
+            }
+        }
+    }
+
+    let datasets = vec![
+        Dataset::default()
+            .name("Spectrum")
+            .marker(symbols::Marker::Braille)
+            .graph_type(GraphType::Line)
+            .style(Style::default().fg(Color::Cyan))
+            .data(&spectrum_data),
+    ];
+
+    let x_labels = vec![
+        Span::styled("0", Style::default().add_modifier(Modifier::BOLD)),
+        Span::raw("1k"),
+        Span::raw("2k"),
+        Span::raw("3k"),
+        Span::raw("4k"),
+        Span::styled("5k", Style::default().add_modifier(Modifier::BOLD)),
+    ];
+
+    let chart = Chart::new(datasets)
+        .block(Block::default().title(title).borders(Borders::ALL))
+        .x_axis(
+            Axis::default()
+                .title("Freq (Hz)")
+                .style(Style::default().fg(Color::Gray))
+                .bounds([0.0, 5000.0])
+                .labels(x_labels)
+        )
+        .y_axis(Axis::default().title("Mag").bounds([0.0, 100.0]));
+    f.render_widget(chart, area);
 }
