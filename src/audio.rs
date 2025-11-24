@@ -26,13 +26,16 @@ impl AudioStream {
         println!("Input device: {}", device.name()?);
 
         let mut supported_configs_range = device.supported_input_configs()?;
-        let config = supported_configs_range
+        let mut config = supported_configs_range
             .find(|c| c.max_sample_rate().0 >= sample_rate && c.min_sample_rate().0 <= sample_rate)
             .map(|c| c.with_sample_rate(cpal::SampleRate(sample_rate)))
             .unwrap_or_else(|| device.default_input_config().unwrap())
             .config();
+        
+        // Force small buffer size for low latency
+        config.buffer_size = cpal::BufferSize::Fixed(512);
             
-        println!("Input Config: Rate: {}, Channels: {}", config.sample_rate.0, config.channels);
+        println!("Input Config: Rate: {}, Channels: {}, Buffer: {:?}", config.sample_rate.0, config.channels, config.buffer_size);
 
         let stream = device.build_input_stream(
             &config,
@@ -64,13 +67,16 @@ impl AudioStream {
 
         // Try to find a matching config first, otherwise fallback to default
         let mut supported_configs_range = device.supported_output_configs()?;
-        let config = supported_configs_range
+        let mut config = supported_configs_range
             .find(|c| c.max_sample_rate().0 >= sample_rate && c.min_sample_rate().0 <= sample_rate)
             .map(|c| c.with_sample_rate(cpal::SampleRate(sample_rate)))
             .unwrap_or_else(|| device.default_output_config().unwrap())
             .config();
+        
+        // Force small buffer size for low latency
+        config.buffer_size = cpal::BufferSize::Fixed(512);
             
-        println!("Output Config: Rate: {}, Channels: {}", config.sample_rate.0, config.channels);
+        println!("Output Config: Rate: {}, Channels: {}, Buffer: {:?}", config.sample_rate.0, config.channels, config.buffer_size);
         let _channels = config.channels as usize;
 
         let stream = device.build_output_stream(
